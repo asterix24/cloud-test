@@ -25,7 +25,7 @@ func handleRequest(conn net.Conn) {
 
 		// Read the incoming connection into the buffer.
 		reqLen, err := conn.Read(buf)
-		fmt.Printf("Len[%v]: %s", reqLen, buf)
+		//fmt.Printf("Len[%v]: %s", reqLen, buf)
 		if err != nil {
 			fmt.Println("Error reading:", err.Error())
 			break
