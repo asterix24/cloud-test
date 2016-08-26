@@ -13,6 +13,9 @@ const version = "0.1.0"
 
 // Handles incoming requests.
 func handleRequest(conn net.Conn) {
+	clientAddr := conn.RemoteAddr()
+
+	fmt.Println("Receive Connection from:" + clientAddr.String())
 	conn.Write([]byte(header + " " + version + ".\n"))
 	// Make a buffer to hold incoming data.
 	buf := make([]byte, 1024)
@@ -28,15 +31,29 @@ func handleRequest(conn net.Conn) {
 			break
 		}
 
-		// Echo
-		conn.Write(buf[:reqLen])
+		s, err := ParseCmd(buf, reqLen)
+		if err != nil {
+			conn.Write([]byte(err.Error()))
+		}
+
+		if len(s) != 0 {
+			if s == "quit" {
+				conn.Write([]byte("Bye bye!\n"))
+				break
+			}
+			conn.Write([]byte(s + "\n"))
+		}
 	}
 
-	// Close the connection when you're done with it.
+	fmt.Println("Close connection form:" + clientAddr.String())
 	conn.Close()
 }
 
 func main() {
+
+	// Init commands table
+	InitCmd()
+
 	// Listen for incoming connections.
 	l, err := net.Listen("tcp", "0.0.0.0"+":"+ConnPort)
 	if err != nil {
