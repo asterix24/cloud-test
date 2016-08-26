@@ -22,16 +22,6 @@ const (
 	StrDeviceNotFound   = "Argument choise not found"
 )
 
-// ParseError module error while process commands
-type ParseError struct {
-	Code int
-	Info string
-}
-
-func (e ParseError) Error() string {
-	return fmt.Sprintf("%v: %v", e.Code, e.Info)
-}
-
 // Cmd Commands protype
 type Cmd func([]string) (string, int)
 
@@ -82,14 +72,14 @@ func relay(l []string) (string, int) {
 		return "Unable to write device" + device + " " + err.Error(), CommandError
 	}
 
-	return "Ok", 0
+	return key + " " + state, 0
 }
 
 // Table Global command table
 var Table map[string]Cmd
 
 // ParseCmd parse command string from net
-func ParseCmd(l []byte, lenght int) (string, error) {
+func ParseCmd(l []byte, lenght int) (string, int) {
 	line := string(l[:lenght])
 	line = strings.ToLower(line)
 	line = strings.TrimSpace(line)
@@ -98,28 +88,15 @@ func ParseCmd(l []byte, lenght int) (string, error) {
 	fmt.Println(cmds)
 
 	if len(cmds) == 0 {
-		return "", ParseError{
-			InvalidCommand,
-			StrInvalidCommand + "\n",
-		}
+		return StrInvalidCommand, InvalidCommand
 	}
 
 	command, ok := Table[cmds[0]]
 	if !ok {
-		return "", ParseError{
-			CommandNotFound,
-			StrCommandNotFound + "\n",
-		}
+		return StrCommandNotFound, CommandNotFound
 	}
 
-	value, ret := command(cmds[1:])
-	if ret < 0 {
-		return "", ParseError{
-			ret,
-			value + "\n",
-		}
-	}
-	return value, nil
+	return command(cmds[1:])
 }
 
 //InitCmd init all commands table

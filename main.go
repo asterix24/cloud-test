@@ -4,12 +4,32 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 )
 
 // ConnPort Default listen port
 const ConnPort = "20000"
 const header = "Hello from TestBoard Suite"
 const version = "0.1.0"
+
+func sendReply(conn net.Conn, code int, msg string) {
+	c := strconv.Itoa(code)
+	s := ""
+	if code < 0 {
+		s += c + " Error in executing command\r\n"
+	} else {
+		s += c + " Command ok\r\n"
+	}
+
+	// Add message terminator, to allow the slsc class
+	// to detect the end of message.
+	if msg != "" {
+		s += msg + "\r\n"
+	}
+	s += "\r\n"
+
+	conn.Write([]byte(s))
+}
 
 // Handles incoming requests.
 func handleRequest(conn net.Conn) {
@@ -20,8 +40,8 @@ func handleRequest(conn net.Conn) {
 	// Make a buffer to hold incoming data.
 	buf := make([]byte, 1024)
 	for {
-		// Send a response back to person contacting us.
-		conn.Write([]byte(">> "))
+		// Remove prompt because slsc class, could give parse error
+		//conn.Write([]byte(">> "))
 
 		// Read the incoming connection into the buffer.
 		reqLen, err := conn.Read(buf)
@@ -31,20 +51,12 @@ func handleRequest(conn net.Conn) {
 			break
 		}
 
-		s, err := ParseCmd(buf, reqLen)
-		if err != nil {
-			conn.Write([]byte(err.Error()))
-		}
-
-		if len(s) != 0 {
-			if s == "quit" {
-				conn.Write([]byte("Bye bye!\n"))
-				break
-			}
-			conn.Write([]byte(s + "\n"))
+		s, code := ParseCmd(buf, reqLen)
+		sendReply(conn, code, s)
+		if s == "quit" {
+			break
 		}
 	}
-
 	fmt.Println("Close connection form:" + clientAddr.String())
 	conn.Close()
 }
