@@ -94,7 +94,7 @@ func main() {
 	// Init commands table
 	InitCmd()
 
-	ServerAddr, err := net.ResolveUDPAddr("udp", "255.255.255.255:23001")
+	ServerAddr, err := net.ResolveUDPAddr("udp", "255.255.255.255:23000")
 	if err != nil {
 		fmt.Printf("ResolveUDPAddr error %v", err)
 	}
