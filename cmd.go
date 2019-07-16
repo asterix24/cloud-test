@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -52,7 +53,6 @@ func writeDev(device string, state string) (string, int) {
 		return "Unable to write device" + device + " " + err.Error(), CommandError
 	}
 	f.Close()
-
 	return "", 0
 }
 
@@ -116,7 +116,7 @@ func muxVolt(l []string) (string, int) {
 	// Help command string
 	if key == listCmd || key == helpCmd {
 		ss := "\nmvolt <ch0 VOLT> <ch1 VOLT> <ch2 VOLT> <ch3 VOLT>\n\n"
-		ss += "\n\tVOLT: 0, 2.5, 5, 8.5\n\n"
+		ss += "\tVOLT: 0, 2.5, 5, 8.5\n"
 		return ss, 0
 	}
 
@@ -185,6 +185,55 @@ func pt100(l []string) (string, int) {
 	return out, 0
 }
 
+var freqMkPulseTable map[string]time.Duration
+
+func mkPulse(l []string) (string, int) {
+	if len(l) < 1 {
+		return StrWrongNumArgument, WrongNumArgument
+	}
+	key := strings.TrimSpace(l[0])
+	// Help command string
+	if key == helpCmd {
+		return "\nmk <freq> <num of pulse>\n", 0
+	}
+
+	if len(l) < 2 {
+		return StrWrongNumArgument, WrongNumArgument
+	}
+	period, ok := freqMkPulseTable[key]
+	if !ok {
+		return "Wrong Freq value [" + key + "]", CommandError
+	}
+	fmt.Println(period)
+	numPulse, err := strconv.Atoi(l[1])
+	if err != nil {
+		return "Wrong numbers of pulse value" + l[1] + " " + err.Error(), CommandError
+	}
+
+	device := "/dev/mk_pulse/value"
+
+	f, err := os.OpenFile(device, os.O_WRONLY, 0777)
+	if err != nil {
+		return "Unable to open device" + device + " " + err.Error(), CommandError
+	}
+	for i := numPulse; i != 0; i-- {
+		time.Sleep(period)
+		f.Write([]byte("0"))
+		time.Sleep(period)
+		f.Write([]byte("1"))
+	}
+	f.Close()
+	return "Mk: " + l[0] + "Hz " + l[1], 0
+}
+
+func help(l []string) (string, int) {
+	ss := ""
+	for k := range Table {
+		ss += k + "\n"
+	}
+	return ss, 0
+}
+
 // Table Global command table
 var Table map[string]Cmd
 
@@ -198,11 +247,13 @@ func ParseCmd(l []byte, lenght int) (string, int) {
 	fmt.Println(cmds)
 
 	if len(cmds) == 0 {
+		fmt.Println("Qui0..." + cmds[0])
 		return StrInvalidCommand, InvalidCommand
 	}
 
-	command, ok := Table[cmds[0]]
+	command, ok := Table[strings.TrimSpace(cmds[0])]
 	if !ok {
+		fmt.Println("Qui..." + cmds[0])
 		return StrCommandNotFound, CommandNotFound
 	}
 
@@ -212,6 +263,7 @@ func ParseCmd(l []byte, lenght int) (string, int) {
 //InitCmd init all commands table
 func InitCmd() {
 	Table = map[string]Cmd{
+		"help":  help,
 		"quit":  quit,
 		"exit":  quit,
 		"ciao":  ciao,
@@ -219,6 +271,7 @@ func InitCmd() {
 		"relay": relay,
 		"mvolt": muxVolt,
 		"pt100": pt100,
+		"mk":    mkPulse,
 	}
 	relayTable = map[string]string{
 		"p24": "/dev/cmd_p24_pwr/value",
@@ -269,5 +322,12 @@ func InitCmd() {
 		"152": {1, 0, 1, 1},
 		"156": {0, 1, 1, 1},
 		"160": {1, 1, 1, 1},
+	}
+
+	freqMkPulseTable = map[string]time.Duration{
+		"50":  20 * time.Millisecond,
+		"100": 10 * time.Millisecond,
+		"250": 5 * time.Millisecond,
+		"500": 2 * time.Millisecond,
 	}
 }
